@@ -4,11 +4,6 @@ from models import Cliente, Producto, Venta
 from shared.json_manager import GestorJSON
 
 
-# =====================================================================
-# CLASE BASE (ABSTRACTA)
-# =====================================================================
-# Solo dice QUÉ métodos debe tener todo controlador.
-# CÓMO se hace cada uno lo escribe cada controlador con su propio modelo.
 class CrudBase(ABC):
 
     @abstractmethod
@@ -36,17 +31,13 @@ class CrudBase(ABC):
         pass
 
 
-# =====================================================================
-# CONTROLADOR DE CLIENTES
-# =====================================================================
 class ClienteController(CrudBase):
 
     def __init__(self, archivo="data/clientes.json"):
-        self.nombre = "cliente"            # se usa en los títulos del menú
-        self.campos = Cliente.CAMPOS       # campos que el menú le pide al usuario
+        self.nombre = "cliente"
+        self.campos = Cliente.CAMPOS
         self.gestor = GestorJSON(archivo)
 
-        # Leemos el JSON y convertimos cada diccionario en un objeto Cliente
         self.lista = []
         for datos in self.gestor.leer():
             self.lista.append(Cliente.desde_diccionario(datos))
@@ -89,20 +80,18 @@ class ClienteController(CrudBase):
         return mayor + 1
 
     def crear(self, datos):
-        # No puede haber dos clientes con el mismo email
         email = str(datos.get("email", "")).strip().lower()
         for cliente in self.lista:
             if cliente.email == email:
                 return False, "Ese email ya está registrado"
 
-        # Si algún dato está mal, el modelo lanza ValueError
         try:
             cliente = Cliente(self.siguiente(),
-                              datos.get("nombre", ""),
-                              datos.get("apellido", ""),
-                              datos.get("email", ""),
-                              datos.get("telefono", ""),
-                              datos.get("ciudad", ""))
+                            datos.get("nombre", ""),
+                            datos.get("apellido", ""),
+                            datos.get("email", ""),
+                            datos.get("telefono", ""),
+                            datos.get("ciudad", ""))
         except ValueError as error:
             return False, str(error)
 
@@ -124,8 +113,6 @@ class ClienteController(CrudBase):
                 if otro.email == email and otro.id != id_cliente:
                     return False, "Ese email ya está registrado"
 
-        # Creamos un cliente nuevo con los cambios. Si algo falla,
-        # el cliente viejo queda igual.
         try:
             nuevo = Cliente(cliente.id,
                             datos.get("nombre", cliente.nombre),
@@ -151,9 +138,6 @@ class ClienteController(CrudBase):
         return True, f"Cliente {id_cliente} eliminado"
 
 
-# =====================================================================
-# CONTROLADOR DE PRODUCTOS
-# =====================================================================
 class ProductoController(CrudBase):
 
     def __init__(self, archivo="data/productos.json"):
@@ -199,13 +183,11 @@ class ProductoController(CrudBase):
         return mayor + 1
 
     def crear(self, datos):
-        # El modelo guarda los nombres con .title(), así que comparamos igual
         nombre = str(datos.get("nombre", "")).strip().title()
         for producto in self.lista:
             if producto.nombre == nombre:
                 return False, f"Ya existe un producto llamado {nombre}"
 
-        # Si no escribieron el stock, empieza en 0
         stock = datos.get("stock", "")
         if str(stock).strip() == "":
             stock = 0
@@ -235,9 +217,9 @@ class ProductoController(CrudBase):
 
         try:
             nuevo = Producto(producto.id,
-                             datos.get("nombre", producto.nombre),
-                             datos.get("precio", producto.precio),
-                             datos.get("stock", producto.stock))
+                           datos.get("nombre", producto.nombre),
+                           datos.get("precio", producto.precio),
+                           datos.get("stock", producto.stock))
         except ValueError as error:
             return False, str(error)
 
@@ -255,7 +237,6 @@ class ProductoController(CrudBase):
         self.guardar()
         return True, f"Producto {id_producto} eliminado"
 
-    # --- métodos propios de productos ---
     def descontar_stock(self, id_producto, cantidad):
         producto = self.obtener(id_producto)
         if producto is None:
@@ -275,9 +256,6 @@ class ProductoController(CrudBase):
         return bajos
 
 
-# =====================================================================
-# CONTROLADOR DE VENTAS
-# =====================================================================
 class VentaController(CrudBase):
 
     def __init__(self, clientes, productos, archivo="data/ventas.json"):
@@ -285,8 +263,6 @@ class VentaController(CrudBase):
         self.campos = Venta.CAMPOS
         self.gestor = GestorJSON(archivo)
 
-        # La venta USA los controladores de clientes y productos.
-        # Hay que pasarle los MISMOS que usa el menú.
         self.clientes = clientes
         self.productos = productos
 
@@ -310,7 +286,6 @@ class VentaController(CrudBase):
         return self.lista
 
     def buscar(self, texto):
-        # Las ventas se buscan por fecha, ej: "2026-10"
         texto = texto.strip()
         encontrados = []
         if texto == "":
@@ -329,7 +304,6 @@ class VentaController(CrudBase):
         return mayor + 1
 
     def crear(self, datos):
-        # datos = {"cliente_id": 1, "items": [{"producto_id": 2, "cantidad": 3}, ...]}
         try:
             cliente_id = int(datos.get("cliente_id", 0))
         except (TypeError, ValueError):
@@ -342,7 +316,6 @@ class VentaController(CrudBase):
         if len(items) == 0:
             return False, "La venta debe tener al menos un producto"
 
-        # Revisamos TODOS los productos antes de vender: si uno falla, no se vende nada
         ids_vistos = []
         for item in items:
             producto = self.productos.obtener(item["producto_id"])
@@ -352,23 +325,21 @@ class VentaController(CrudBase):
                 return False, f"El producto {producto.nombre} está repetido en la venta"
             if not producto.hay_stock(item["cantidad"]):
                 return False, (f"Stock insuficiente de {producto.nombre}: "
-                               f"hay {producto.stock}, piden {item['cantidad']}")
+                             f"hay {producto.stock}, piden {item['cantidad']}")
             ids_vistos.append(producto.id)
 
-        # Todo bien: armamos la venta y descontamos el stock
         venta = Venta(self.siguiente(), cliente_id, datos.get("fecha", ""))
         for item in items:
             producto = self.productos.obtener(item["producto_id"])
             venta.agregar_detalle(producto, item["cantidad"])
             producto.descontar_stock(item["cantidad"])
-        self.productos.guardar()          # guarda el stock nuevo en productos.json
+        self.productos.guardar()
 
         self.lista.append(venta)
-        self.guardar()                    # guarda la venta en ventas.json
+        self.guardar()
         return True, f"Venta {venta.id} registrada por ${venta.total:.2f}"
 
     def actualizar(self, id_venta, datos):
-        # Una venta ya registrada no se modifica (como una factura real)
         return False, "Las ventas registradas no se pueden modificar"
 
     def eliminar(self, id_venta):
@@ -380,7 +351,6 @@ class VentaController(CrudBase):
         self.guardar()
         return True, f"Venta {id_venta} eliminada"
 
-    # --- métodos propios de ventas ---
     def factura(self, id_venta):
         venta = self.obtener(id_venta)
         if venta is None:
@@ -392,7 +362,7 @@ class VentaController(CrudBase):
         else:
             nombre_cliente = cliente.nombre_completo
 
-        texto = f"FACTURA #{venta.id}   fecha: {venta.fecha}\n"
+        texto = f"FACTURA #{venta.id}    fecha: {venta.fecha}\n"
         texto += f"Cliente: {nombre_cliente}\n"
         texto += "-" * 46 + "\n"
         for detalle in venta.detalles:
@@ -409,15 +379,9 @@ class VentaController(CrudBase):
         return resultado
 
 
-# =====================================================================
-# PRUEBAS SENCILLAS: solo se ejecutan con "python views.py"
-# (desde la carpeta proyecto_clientes)
-# =====================================================================
 if __name__ == "__main__":
     import os
 
-    # Las pruebas usan la carpeta data_prueba/ para no tocar los datos reales.
-    # Borramos los archivos de una prueba anterior para empezar desde cero.
     for ruta in ["data_prueba/clientes.json", "data_prueba/productos.json",
                  "data_prueba/ventas.json"]:
         if os.path.exists(ruta):
@@ -427,7 +391,6 @@ if __name__ == "__main__":
     productos = ProductoController("data_prueba/productos.json")
     ventas = VentaController(clientes, productos, "data_prueba/ventas.json")
 
-    # CrudBase es abstracta: no se puede crear un objeto de ella
     try:
         CrudBase()
     except TypeError as error:
@@ -438,13 +401,13 @@ if __name__ == "__main__":
     print("CLIENTES")
     print("=" * 60)
     print("Crear Juan        ->", clientes.crear({"nombre": "juan", "apellido": "perez",
-                                                  "email": "juan@mail.com",
-                                                  "telefono": "0991234567",
-                                                  "ciudad": "milagro"}))
+                                                "email": "juan@mail.com",
+                                                "telefono": "0991234567",
+                                                "ciudad": "milagro"}))
     print("Crear María       ->", clientes.crear({"nombre": "maria", "apellido": "lopez",
-                                                  "email": "maria@mail.com"}))
+                                                "email": "maria@mail.com"}))
     print("Email repetido    ->", clientes.crear({"nombre": "otro", "apellido": "x",
-                                                  "email": "JUAN@mail.com"}))
+                                                "email": "JUAN@mail.com"}))
     print("siguiente()       ->", clientes.siguiente())
     print("leer():")
     for cliente in clientes.leer():
@@ -495,7 +458,6 @@ if __name__ == "__main__":
     print("=" * 60)
     print("¿SE GUARDÓ TODO EN LOS ARCHIVOS?")
     print("=" * 60)
-    # Controladores nuevos: leen los JSON desde cero
     clientes2 = ClienteController("data_prueba/clientes.json")
     productos2 = ProductoController("data_prueba/productos.json")
     ventas2 = VentaController(clientes2, productos2, "data_prueba/ventas.json")
