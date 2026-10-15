@@ -1,6 +1,4 @@
-# main.py es la VISTA: lo único que habla con el usuario (input/print).
-# No valida ni guarda nada: le pide todo a los controladores de views.py
-# y solo muestra lo que ellos responden.
+
 from shared.herramientas import (
     imprimir_titulo, imprimir_exito, imprimir_error, imprimir_info, confirmar
 )
@@ -10,31 +8,27 @@ from views import ClienteController, ProductoController, VentaController
 class Menu:
 
     def __init__(self):
-        # Se crea UN solo controlador de cada tipo.
-        # A ventas se le pasan los MISMOS clientes y productos.
+        
         self.clientes = ClienteController()
         self.productos = ProductoController()
         self.ventas = VentaController(self.clientes, self.productos)
 
-    # ---------- ayudas ----------
     def pausa(self):
         input("\nPresione Enter para continuar...")
 
     def pedir_entero(self, texto):
-        # Devuelve el número, o None si el usuario no escribió un número
         try:
             return int(input(texto))
         except ValueError:
             return None
 
     def mostrar_resultado(self, exito, mensaje):
-        # Los controladores devuelven (exito, mensaje)
+
         if exito:
             imprimir_exito(mensaje)
         else:
             imprimir_error(mensaje)
 
-    # ---------- menú principal ----------
     def ejecutar(self):
         while True:
             imprimir_titulo("SISTEMA DE VENTAS")
@@ -57,11 +51,8 @@ class Menu:
                 imprimir_error("Opción no válida")
                 self.pausa()
 
-    # ---------- menú de cada controlador ----------
-    # El mismo menú sirve para clientes, productos y ventas,
-    # porque los tres controladores tienen los mismos métodos.
     def menu_crud(self, controlador):
-        titulo = controlador.nombre.upper() + "S"     # CLIENTES, PRODUCTOS, VENTAS
+        titulo = controlador.nombre.upper() + "S"     
 
         while True:
             imprimir_titulo(titulo)
@@ -99,10 +90,8 @@ class Menu:
                 imprimir_error("Opción no válida")
                 self.pausa()
 
-    # ---------- operaciones ----------
     def crear(self, controlador):
         imprimir_titulo(f"CREAR {controlador.nombre.upper()}")
-        # Se pregunta un dato por cada campo del modelo
         datos = {}
         for campo in controlador.campos:
             datos[campo] = input(f"{campo.capitalize()}: ")
@@ -188,7 +177,6 @@ class Menu:
             imprimir_info("Operación cancelada")
         self.pausa()
 
-    # ---------- solo para ventas ----------
     def crear_venta(self):
         imprimir_titulo("REGISTRAR VENTA")
         cliente_id = self.pedir_entero("Id del cliente: ")
@@ -200,8 +188,6 @@ class Menu:
         imprimir_info("Productos disponibles:")
         for producto in self.productos.leer():
             print(f"  {producto}")
-
-        # Se piden productos hasta que el usuario escriba 0
         items = []
         while True:
             producto_id = self.pedir_entero("\nId del producto (0 para terminar): ")
@@ -227,8 +213,6 @@ class Menu:
             print(texto)
         self.pausa()
 
-
-# Solo arranca si se ejecuta "python main.py"
 if __name__ == "__main__":
     try:
         Menu().ejecutar()
