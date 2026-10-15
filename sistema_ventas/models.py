@@ -2,13 +2,9 @@ from abc import ABC, abstractmethod
 from datetime import date
 
 
-# =====================================================================
-# ABSTRACCIÓN: clase abstracta raíz de todos los modelos
-# =====================================================================
 class ModeloBase(ABC):
-    """Contrato mínimo que todo modelo del sistema debe cumplir."""
 
-    CAMPOS = ()          # atributos de clase que cada hijo redefine
+    CAMPOS = ()
     OBLIGATORIOS = ()
 
     def __init__(self, id_registro):
@@ -16,44 +12,36 @@ class ModeloBase(ABC):
 
     @property
     def id(self):
-        # Solo lectura: el id lo asigna el Controlador y nadie más lo cambia
         return self.__id
 
     @staticmethod
     def limpiar(texto):
         return str(texto).strip()
 
-    # ---- MÉTODOS ABSTRACTOS: obligan a los hijos a implementarlos ----
     @abstractmethod
     def a_diccionario(self):
-        """Objeto -> diccionario, para poder guardarlo en JSON."""
+        pass
 
     @abstractmethod
     def etiqueta(self):
-        """Una línea que describe al objeto. Cada modelo la arma a su manera."""
+        pass
 
-    # ---- MÉTODO CONCRETO: se hereda tal cual ----
     @classmethod
     def desde_diccionario(cls, datos):
         valores = {campo: datos.get(campo, "") for campo in cls.CAMPOS}
         return cls(datos["id"], **valores)
 
     def __str__(self):
-        # POLIMORFISMO: el mismo print() muestra distinto según la clase
         return f"[{self.id}] {self.etiqueta()}"
 
 
-# =====================================================================
-# HERENCIA: Persona es la base de Cliente (y de Estudiante y Docente)
-# =====================================================================
 class Persona(ModeloBase):
-    """Abstracta: agrupa lo que toda persona del sistema tiene."""
 
     CAMPOS = ("nombre", "apellido", "email")
     OBLIGATORIOS = ("nombre", "apellido", "email")
 
     def __init__(self, id_registro, nombre, apellido, email):
-        super().__init__(id_registro)     # llama al __init__ del padre
+        super().__init__(id_registro)
         self.nombre = nombre
         self.apellido = apellido
         self.email = email
@@ -113,7 +101,6 @@ class Persona(ModeloBase):
 
 
 class Cliente(Persona):
-    """Persona que compra. Agrega teléfono y ciudad."""
 
     CAMPOS = Persona.CAMPOS + ("telefono", "ciudad")
     OBLIGATORIOS = Persona.OBLIGATORIOS
@@ -143,7 +130,7 @@ class Cliente(Persona):
         self.__ciudad = Cliente.limpiar(valor).title()
 
     def a_diccionario(self):
-        datos = super().a_diccionario()      # reutiliza lo del padre
+        datos = super().a_diccionario()
         datos["telefono"] = self.__telefono
         datos["ciudad"] = self.__ciudad
         return datos
@@ -152,9 +139,7 @@ class Cliente(Persona):
         return f"{self.nombre_completo} · {self.email}"
 
 
-# =====================================================================
 class Producto(ModeloBase):
-    """Lo que se vende. Sabe cuidar su propio stock."""
 
     CAMPOS = ("nombre", "precio", "stock")
     OBLIGATORIOS = ("nombre", "precio")
@@ -230,11 +215,7 @@ class Producto(ModeloBase):
         return f"{self.__nombre} · ${self.__precio:.2f} · stock {self.__stock}"
 
 
-# =====================================================================
-# COMPOSICIÓN: el detalle no existe sin su venta
-# =====================================================================
 class DetalleVenta:
-    """Una línea de la venta. No se guarda solo: viaja dentro de la Venta."""
 
     def __init__(self, producto_id, descripcion, cantidad, precio_unitario):
         self.__producto_id = int(producto_id)
@@ -277,7 +258,6 @@ class DetalleVenta:
 
     @property
     def subtotal(self):
-        # CALCULADA: nunca se guarda, siempre se recalcula
         return round(self.__cantidad * self.__precio_unitario, 2)
 
     def a_diccionario(self):
@@ -303,7 +283,6 @@ class DetalleVenta:
 
 
 class Venta(ModeloBase):
-    """AGREGACIÓN con Cliente (guarda su id) y COMPOSICIÓN con DetalleVenta."""
 
     CAMPOS = ("cliente_id", "fecha")
     OBLIGATORIOS = ("cliente_id",)
@@ -312,7 +291,6 @@ class Venta(ModeloBase):
         super().__init__(id_registro)
         self.cliente_id = cliente_id
         self.fecha = fecha or date.today().isoformat()
-        # LISTA privada de detalles: la Venta es dueña de sus partes
         self.__detalles = list(detalles) if detalles else []
 
     @property
@@ -336,7 +314,6 @@ class Venta(ModeloBase):
 
     @property
     def detalles(self):
-        # TUPLA: copia de solo lectura. Para agregar hay que usar agregar_detalle()
         return tuple(self.__detalles)
 
     @property
@@ -348,7 +325,6 @@ class Venta(ModeloBase):
         return sum(detalle.cantidad for detalle in self.__detalles)
 
     def agregar_detalle(self, producto, cantidad):
-        """La Venta CREA sus propios detalles a partir de un Producto."""
         if not producto.hay_stock(cantidad):
             raise ValueError(
                 f"Stock insuficiente de {producto.nombre}: hay {producto.stock}"
@@ -373,7 +349,6 @@ class Venta(ModeloBase):
 
     @classmethod
     def desde_diccionario(cls, datos):
-        # Sobrescribimos el método del padre: hay que reconstruir los detalles
         detalles = [DetalleVenta.desde_diccionario(d) for d in datos.get("detalles", [])]
         return cls(datos["id"], datos["cliente_id"], datos.get("fecha", ""), detalles)
 
