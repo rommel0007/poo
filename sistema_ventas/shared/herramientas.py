@@ -1,9 +1,9 @@
 import os
 
-VERDE = "\033[92m"
-ROJO = "\033[91m"
-AZUL = "\033[94m"
-AMARILLO = "\033[93m"
+CYAN = "\033[96m"
+MAGENTA = "\033[95m"
+BLANCO = "\033[97m"
+MORADO = "\033[35m"
 RESET = "\033[0m"
 
 
@@ -17,21 +17,21 @@ def imprimir_color(texto, color):
 
 def imprimir_titulo(texto):
     print()
-    imprimir_color("=" * 46, AZUL)
-    imprimir_color(f"  {texto}", AZUL)
-    imprimir_color("=" * 46, AZUL)
+    imprimir_color("=" * 46, CYAN)
+    imprimir_color(f"  {texto}", CYAN)
+    imprimir_color("=" * 46, CYAN)
 
 
 def imprimir_exito(texto):
-    imprimir_color(f"✔ {texto}", VERDE)
+    imprimir_color(f"✔ {texto}", BLANCO)
 
 
 def imprimir_error(texto):
-    imprimir_color(f"✘ {texto}", ROJO)
+    imprimir_color(f"✘ {texto}", MAGENTA)
 
 
 def imprimir_info(texto):
-    imprimir_color(f"ℹ {texto}", AMARILLO)
+    imprimir_color(f"ℹ {texto}", MORADO)
 
 
 def confirmar(pregunta):
